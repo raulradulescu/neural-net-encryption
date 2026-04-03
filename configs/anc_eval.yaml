@@ -1,0 +1,18 @@
+checkpoint: null
+output_dir: outputs/anc_eval
+seed: 19
+device: cpu
+eval_samples: 2048
+batch_size: 256
+attacker_modes:
+  - baseline
+  - restarted
+  - known_plaintext
+  - chosen_plaintext
+restart_count: 5
+restart_epochs: 4
+known_plaintext_samples: 4096
+known_plaintext_epochs: 4
+chosen_plaintext_queries: 8192
+chosen_plaintext_epochs: 6
+attacker_learning_rate: 0.001

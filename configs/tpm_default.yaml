@@ -1,0 +1,9 @@
+k_hidden: 3
+n_inputs: 4
+weight_limit: 3
+max_rounds: 500
+trials: 8
+seed: 1337
+output_dir: outputs/tpm
+attacker_strategy: naive
+

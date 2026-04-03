@@ -1,0 +1,2 @@
+"""Baseline crypto benchmark package."""
+

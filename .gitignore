@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Project outputs (generated per-run)
+outputs/
+
+# Dataset (generated)
+neural_crypto_dataset/
+
+# Byte-compiled test caches
+.pytest_cache/
+
+# mypy / type checkers
+.mypy_cache/
+
+# Environment variables
+.env

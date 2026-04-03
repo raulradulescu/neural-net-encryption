@@ -1,0 +1,16 @@
+output_dir: outputs/baseline
+seed: 1337
+iterations: 64
+payload_sizes: [32, 1024]
+algorithms:
+  - aesgcm
+  - chacha20poly1305
+associated_data: baseline-aad
+neural_compare: true
+neural_checkpoint: null
+neural_plaintext_len: 32
+neural_key_len: 32
+neural_model_width: 64
+neural_model_depth: 2
+neural_batch_size: 256
+neural_iterations: 100
