@@ -34,6 +34,9 @@ class ANCTrainingConfig:
     grad_clip: float = 1.0
     train_samples: int = 8192
     eval_samples: int = 1024
+    dataset_mode: str = "mixed"
+    dataset_structured_ratio: float = 0.35
+    dataset_edge_ratio: float = 0.10
     seed: int = 7
     output_dir: str = "outputs/anc"
     run_name: str = "anc"
@@ -80,6 +83,14 @@ class ANCTrainingConfig:
             raise ValueError("eve_weight must be >= 0")
         if self.device not in {"auto", "cpu"}:
             raise ValueError("device must be one of: auto, cpu")
+        if self.dataset_mode not in {"random", "mixed"}:
+            raise ValueError("dataset_mode must be one of: random, mixed")
+        if not (0.0 <= self.dataset_structured_ratio <= 1.0):
+            raise ValueError("dataset_structured_ratio must be within [0, 1]")
+        if not (0.0 <= self.dataset_edge_ratio <= 1.0):
+            raise ValueError("dataset_edge_ratio must be within [0, 1]")
+        if self.dataset_structured_ratio + self.dataset_edge_ratio > 1.0:
+            raise ValueError("dataset_structured_ratio + dataset_edge_ratio must be <= 1")
 
     @classmethod
     def from_mapping(cls, mapping: Mapping[str, Any]) -> "ANCTrainingConfig":
@@ -104,12 +115,106 @@ def load_config_file(config_path: Path, overrides: Sequence[str] | None = None) 
     return ANCTrainingConfig.from_mapping(mapping)
 
 
+def _random_bits(n_samples: int, n_bits: int, generator: torch.Generator) -> Tensor:
+    return torch.randint(0, 2, (n_samples, n_bits), generator=generator, dtype=torch.float32)
+
+
+def _make_structured_bits(n_samples: int, n_bits: int, generator: torch.Generator) -> Tensor:
+    if n_samples == 0:
+        return torch.empty((0, n_bits), dtype=torch.float32)
+
+    # Start from random bits and inject spatially-correlated transforms.
+    bits = _random_bits(n_samples, n_bits, generator)
+    if n_samples >= 2:
+        half = n_samples // 2
+        # Rolling creates local dependencies between adjacent positions.
+        bits[:half] = torch.remainder(bits[:half] + torch.roll(bits[:half], shifts=1, dims=1), 2.0)
+        # Prefix parity encourages long-range structure.
+        bits[half:] = torch.remainder(torch.cumsum(bits[half:], dim=1), 2.0)
+    return bits
+
+
+def _make_edge_case_bits(n_samples: int, n_bits: int, generator: torch.Generator) -> Tensor:
+    if n_samples == 0:
+        return torch.empty((0, n_bits), dtype=torch.float32)
+
+    bits = _random_bits(n_samples, n_bits, generator)
+    patterns = [
+        torch.zeros((n_bits,), dtype=torch.float32),
+        torch.ones((n_bits,), dtype=torch.float32),
+        torch.tensor([(i % 2) for i in range(n_bits)], dtype=torch.float32),
+        torch.tensor([((i + 1) % 2) for i in range(n_bits)], dtype=torch.float32),
+    ]
+    for i in range(n_samples):
+        mode = i % 6
+        if mode < len(patterns):
+            bits[i] = patterns[mode]
+        elif mode == 4:
+            # Exactly one bit set.
+            idx = int(torch.randint(0, n_bits, (1,), generator=generator).item())
+            bits[i].zero_()
+            bits[i, idx] = 1.0
+        else:
+            # Exactly one bit cleared.
+            idx = int(torch.randint(0, n_bits, (1,), generator=generator).item())
+            bits[i].fill_(1.0)
+            bits[i, idx] = 0.0
+    return bits
+
+
+def _assemble_dataset_component(
+    n_samples: int,
+    n_bits: int,
+    generator: torch.Generator,
+    mode: str,
+    structured_ratio: float,
+    edge_ratio: float,
+) -> Tensor:
+    if n_samples <= 0:
+        return torch.empty((0, n_bits), dtype=torch.float32)
+
+    if mode == "random":
+        return _random_bits(n_samples, n_bits, generator)
+
+    n_structured = int(round(n_samples * structured_ratio))
+    n_edge = int(round(n_samples * edge_ratio))
+    n_random = max(0, n_samples - n_structured - n_edge)
+    # Keep exact sample count.
+    while (n_random + n_structured + n_edge) > n_samples:
+        n_structured = max(0, n_structured - 1)
+    while (n_random + n_structured + n_edge) < n_samples:
+        n_random += 1
+
+    random_part = _random_bits(n_random, n_bits, generator)
+    structured_part = _make_structured_bits(n_structured, n_bits, generator)
+    edge_part = _make_edge_case_bits(n_edge, n_bits, generator)
+
+    out = torch.cat([random_part, structured_part, edge_part], dim=0)
+    # Shuffle so mini-batches see mixed hardness.
+    perm = torch.randperm(out.shape[0], generator=generator)
+    return out[perm]
+
+
 def generate_dataset(cfg: ANCTrainingConfig, n_samples: int, seed: int, device: torch.device | None = None) -> tuple[Tensor, Tensor]:
     target_device = device if device is not None else torch.device("cpu")
     generator = torch.Generator(device="cpu")
     generator.manual_seed(int(seed))
-    plaintext = torch.randint(0, 2, (n_samples, cfg.plaintext_len), generator=generator, dtype=torch.float32)
-    key = torch.randint(0, 2, (n_samples, cfg.key_len), generator=generator, dtype=torch.float32)
+    plaintext = _assemble_dataset_component(
+        n_samples=n_samples,
+        n_bits=cfg.plaintext_len,
+        generator=generator,
+        mode=cfg.dataset_mode,
+        structured_ratio=cfg.dataset_structured_ratio,
+        edge_ratio=cfg.dataset_edge_ratio,
+    )
+    key = _assemble_dataset_component(
+        n_samples=n_samples,
+        n_bits=cfg.key_len,
+        generator=generator,
+        mode=cfg.dataset_mode,
+        structured_ratio=cfg.dataset_structured_ratio,
+        edge_ratio=cfg.dataset_edge_ratio,
+    )
     return plaintext.to(target_device), key.to(target_device)
 
 

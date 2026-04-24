@@ -46,8 +46,10 @@ class AliceModel(nn.Module):
         self.net = build_mlp(plaintext_len + key_len, ciphertext_len, width, depth)
 
     def forward(self, plaintext: Tensor, key: Tensor) -> Tensor:
-        if plaintext.shape != key.shape:
-            raise ValueError(f"plaintext and key must share shape, got {plaintext.shape} vs {key.shape}")
+        if plaintext.dim() != 2 or key.dim() != 2:
+            raise ValueError(f"Expected 2D tensors, got plaintext {plaintext.dim()}D and key {key.dim()}D")
+        if plaintext.shape[0] != key.shape[0]:
+            raise ValueError(f"Batch size mismatch: plaintext {plaintext.shape[0]} vs key {key.shape[0]}")
         x = torch.cat([plaintext, key], dim=1)
         return self.net(x)
 

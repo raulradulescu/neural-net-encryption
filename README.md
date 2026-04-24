@@ -75,6 +75,12 @@ Example:
 py -3.13 -m src.training.train_anc --config configs/anc_small.yaml --override epochs=5 --override learning_rate=0.0005
 ```
 
+Dataset hardness knobs for ANC:
+
+- `dataset_mode`: `random` or `mixed`
+- `dataset_structured_ratio`: fraction of structured correlated samples
+- `dataset_edge_ratio`: fraction of edge-case samples (all-zeros/all-ones/sparse patterns)
+
 ## Output artifacts
 
 Each run creates a unique run directory with mode-specific files. ANC runs include:
