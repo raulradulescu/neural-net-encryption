@@ -1,0 +1,26 @@
+plaintext_len: 32
+key_len: 32
+ciphertext_len: 32
+
+model_width: 128
+model_depth: 3
+
+batch_size: 256
+epochs: 250
+learning_rate: 0.0005
+eve_learning_rate: 0.001
+eve_steps_per_ab_step: 1
+
+balance_weight: 0.02
+eve_weight: 0.25
+grad_clip: 1.0
+
+train_samples: 16384
+eval_samples: 4096
+
+seed: 7
+output_dir: outputs/anc
+run_name: anc_recommended
+device: cpu
+deterministic: true
+checkpoint_every: 5

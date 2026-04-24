@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from .config import apply_overrides, build_config_parser, deep_merge, load_config, load_config_with_overrides, parse_overrides
 from .errors import ArtifactError, ConfigError, ErrorContext, ExperimentError, ValidationError, require
-from .io import create_run_dir, write_csv, write_json, write_jsonl
+from .io import create_run_dir, write_csv, write_json, write_jsonl, write_yaml
 from .plot import save_line_plot
 from .seed import set_seed
 
@@ -27,4 +27,5 @@ __all__ = [
     "write_csv",
     "write_json",
     "write_jsonl",
+    "write_yaml",
 ]
