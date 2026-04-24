@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 from uuid import uuid4
 
+import yaml
+
 from .errors import ArtifactError
 
 
@@ -58,6 +60,19 @@ def write_jsonl(path: str | Path, rows: Iterable[Any]) -> Path:
                 handle.write("\n")
     except OSError as exc:
         raise ArtifactError(f"Failed to write JSONL artifact to {output}: {exc}") from exc
+    return output
+
+
+def write_yaml(path: str | Path, data: Any, *, sort_keys: bool = False) -> Path:
+    """Write YAML data to disk."""
+
+    output = Path(path)
+    _ensure_parent(output)
+    try:
+        with output.open("w", encoding="utf-8") as handle:
+            yaml.safe_dump(data, handle, sort_keys=sort_keys)
+    except (OSError, yaml.YAMLError) as exc:
+        raise ArtifactError(f"Failed to write YAML artifact to {output}: {exc}") from exc
     return output
 
 

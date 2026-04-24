@@ -17,52 +17,61 @@ Use standard, audited cryptography (for example AES-GCM or ChaCha20-Poly1305) fo
 
 ## Requirements
 
-- Windows with local Python `3.13.5`
+- Linux, WSL, or another POSIX-like shell
+- Python `3.10+`
 - `pip`
 
-## Setup (Windows)
+## Setup (Linux)
 
-```powershell
-py -3.13 -m venv .venv
-.venv\Scripts\activate
-py -3.13 -m pip install --upgrade pip
-py -3.13 -m pip install -e .[dev]
-py -3.13 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
-The last command installs a CPU-only PyTorch build (no NVIDIA CUDA runtime packages).
+The last command installs a CPU-only PyTorch build. Use a CUDA-specific PyTorch install command only if you intentionally want GPU packages.
 
 ## CLI quickstart
 
 Train ANC:
 
-```powershell
-py -3.13 -m src.training.train_anc --config configs/anc_small.yaml
+```bash
+anc-train --config configs/anc_small.yaml
 ```
 
 Evaluate trained checkpoint directory:
 
-```powershell
-py -3.13 -m src.evaluation.eval_anc --checkpoint outputs\anc\<run_dir> --config configs/anc_eval.yaml
+```bash
+anc-eval --checkpoint outputs/anc/<run_dir> --config configs/anc_eval.yaml
 ```
 
 Run TPM simulation:
 
-```powershell
-py -3.13 -m src.tpm.run_tpm --config configs/tpm_default.yaml
+```bash
+anc-tpm --config configs/tpm_default.yaml
 ```
 
 Run baseline benchmark:
 
-```powershell
-py -3.13 -m src.baseline.benchmark --config configs/baseline.yaml
+```bash
+anc-baseline --config configs/baseline.yaml
+```
+
+Test a trained checkpoint with plaintext typed from the keyboard:
+
+```bash
+anc-demo --checkpoint outputs/anc/<run_dir>
 ```
 
 Run tests:
 
-```powershell
-py -3.13 -m pytest -q
+```bash
+pytest -q
 ```
+
+The original module entrypoints still work, for example `python -m src.training.train_anc --config configs/anc_small.yaml`.
 
 ## Configuration and overrides
 
@@ -71,8 +80,8 @@ For ANC and ANC evaluation, override values using repeated `--override key=value
 
 Example:
 
-```powershell
-py -3.13 -m src.training.train_anc --config configs/anc_small.yaml --override epochs=5 --override learning_rate=0.0005
+```bash
+anc-train --config configs/anc_small.yaml --override epochs=5 --override learning_rate=0.0005
 ```
 
 ## Output artifacts
@@ -83,7 +92,7 @@ Each run creates a unique run directory with mode-specific files. ANC runs inclu
 - `metrics.json`
 - `train_log.csv`
 - `checkpoints/`
-- `training_curves.png`
+- `training_curves.png`, or `training_curves.csv` when Matplotlib is unavailable
 - `summary.md`
 
 Evaluation, TPM, and baseline modes write equivalent structured artifacts in their run directories.

@@ -7,8 +7,10 @@ import json
 import math
 import random
 import statistics
-import time
-from typing import Any, Iterable
+from time import perf_counter
+from typing import Any
+
+from src.utils.io import create_run_dir, write_json, write_yaml
 
 try:
     import yaml
@@ -200,27 +202,6 @@ def run_single_trial(cfg: TpmConfig, rng: random.Random, trial_index: int) -> Tp
     )
 
 
-def _unique_run_dir(base_dir: Path, prefix: str) -> Path:
-    base_dir.mkdir(parents=True, exist_ok=True)
-    stamp = time.strftime("%Y%m%dT%H%M%S")
-    suffix = f"{random.SystemRandom().randrange(16**8):08x}"
-    run_dir = base_dir / f"{prefix}_{stamp}_{suffix}"
-    run_dir.mkdir(parents=True, exist_ok=False)
-    return run_dir
-
-
-def _write_yaml(path: Path, payload: dict[str, Any]) -> None:
-    _require_yaml()
-    with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=False)
-
-
-def _write_json(path: Path, payload: Any) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-
-
 def _write_summary(path: Path, cfg: TpmConfig, results: list[TpmTrialResult], metrics: dict[str, Any]) -> None:
     success_rate = metrics["success_rate"]
     attacker_rate = metrics["attacker_success_rate"]
@@ -289,16 +270,16 @@ def run_tpm_from_config(config_path: str | Path) -> dict[str, Any]:
     cfg = TpmConfig.from_mapping(mapping)
     cfg.validate()
 
-    run_dir = _unique_run_dir(Path(cfg.output_dir), "tpm")
+    run_dir = create_run_dir(Path(cfg.output_dir), prefix="tpm")
     resolved = asdict(cfg)
-    _write_yaml(run_dir / "resolved_config.yaml", resolved)
+    write_yaml(run_dir / "resolved_config.yaml", resolved)
 
     rng = random.Random(cfg.seed)
     trials: list[TpmTrialResult] = []
-    started = time.perf_counter()
+    started = perf_counter()
     for trial_index in range(cfg.trials):
         trials.append(run_single_trial(cfg, rng, trial_index))
-    elapsed = time.perf_counter() - started
+    elapsed = perf_counter() - started
 
     successful = [trial for trial in trials if trial.synchronized]
     attacker_successful = [trial for trial in trials if trial.attacker_synchronized]
@@ -333,7 +314,7 @@ def run_tpm_from_config(config_path: str | Path) -> dict[str, Any]:
     with (run_dir / "trials.jsonl").open("w", encoding="utf-8") as handle:
         for trial in trials:
             handle.write(json.dumps(asdict(trial), sort_keys=True) + "\n")
-    _write_json(run_dir / "metrics.json", metrics)
+    write_json(run_dir / "metrics.json", metrics)
     _write_summary(run_dir / "summary.txt", cfg, trials, metrics)
     _write_rounds_csv(run_dir / "rounds.csv", trials)
     _write_histogram(run_dir / "rounds_histogram.png", trials)

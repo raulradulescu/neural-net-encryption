@@ -46,7 +46,7 @@ def test_smoke_end_to_end(tmp_path) -> None:
     assert (anc_run_dir / "train_log.csv").exists()
     assert (anc_run_dir / "checkpoints" / "checkpoint_last.pt").exists()
     assert (anc_run_dir / "checkpoints" / "checkpoint_best.pt").exists()
-    assert (anc_run_dir / "training_curves.png").exists()
+    assert (anc_run_dir / "training_curves.png").exists() or (anc_run_dir / "training_curves.csv").exists()
     assert (anc_run_dir / "summary.md").exists()
 
     eval_cfg = ANCEvalConfig(

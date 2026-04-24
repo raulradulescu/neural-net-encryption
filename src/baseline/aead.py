@@ -3,14 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 import csv
 import hashlib
-import json
 import random
 from pathlib import Path
-from time import perf_counter, strftime
+from time import perf_counter
 from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 import yaml
+
+from src.utils.io import create_run_dir, write_json, write_yaml
 
 
 def _coerce_bytes(value: bytes | bytearray | memoryview | str | None) -> bytes:
@@ -141,26 +142,6 @@ class SizeBenchmarkResult:
     round_trip_seconds: float
     encrypt_throughput_bps: float
     round_trip_throughput_bps: float
-
-
-def _unique_run_dir(base_dir: Path, prefix: str) -> Path:
-    base_dir.mkdir(parents=True, exist_ok=True)
-    stamp = strftime("%Y%m%dT%H%M%S")
-    suffix = f"{random.SystemRandom().randrange(16**8):08x}"
-    run_dir = base_dir / f"{prefix}_{stamp}_{suffix}"
-    run_dir.mkdir(parents=True, exist_ok=False)
-    return run_dir
-
-
-def _write_yaml(path: Path, payload: dict[str, Any]) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=False)
-
-
-def _write_json(path: Path, payload: Any) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, sort_keys=True)
-        handle.write("\n")
 
 
 def _derive_bytes(seed: int, label: str, size: int) -> bytes:
@@ -378,8 +359,8 @@ def run_benchmark_from_config(config_path: str | Path) -> dict[str, Any]:
     cfg = BenchmarkConfig.from_mapping(mapping)
     cfg.validate()
 
-    run_dir = _unique_run_dir(Path(cfg.output_dir), "baseline")
-    _write_yaml(run_dir / "resolved_config.yaml", cfg.__dict__)
+    run_dir = create_run_dir(Path(cfg.output_dir), prefix="baseline")
+    write_yaml(run_dir / "resolved_config.yaml", cfg.__dict__)
 
     associated_data = _coerce_bytes(cfg.associated_data)
     started = perf_counter()
@@ -407,7 +388,7 @@ def run_benchmark_from_config(config_path: str | Path) -> dict[str, Any]:
             "throughput_chart": "throughput.png",
         },
     }
-    _write_json(run_dir / "metrics.json", metrics)
+    write_json(run_dir / "metrics.json", metrics)
     _write_results_csv(run_dir / "results.csv", results)
     _write_summary(run_dir / "summary.txt", cfg, results, elapsed, neural_metrics)
     _write_chart(run_dir / "throughput.png", results, neural_metrics)
